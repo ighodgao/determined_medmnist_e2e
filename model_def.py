@@ -12,7 +12,6 @@ import torchvision.transforms as transforms
 from torchvision.models import resnet18, resnet50
 from tensorboardX import SummaryWriter
 from collections import OrderedDict
-from models import ResNet18, ResNet50
 import determined
 import medmnist
 from medmnist import INFO, Evaluator
@@ -22,7 +21,10 @@ from determined.experimental import client
 from typing import Any, Dict, Union, Sequence
 from determined.pytorch import DataLoader, PyTorchTrial, PyTorchTrialContext
 
+import wget
+
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
+DATASET_ROOT = 'datasets'
 
 class MyMEDMnistTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
@@ -30,15 +32,13 @@ class MyMEDMnistTrial(PyTorchTrial):
 
         info = INFO[self.context.get_hparam("data_flag")]
         task = info['task']
-        n_channels = 3 if self.context.get_hparam("as_rgb") else info['n_channels']
         n_classes = len(info['label'])
 
         self.context = context
-        resize = self.context.get_hparam("resize")
         if self.context.get_hparam("model_flag") == 'resnet18':
-            model =  resnet18(pretrained=False, num_classes=n_classes) if resize else ResNet18(in_channels=n_channels, num_classes=n_classes)
+            model =  resnet18(pretrained=False, num_classes=n_classes)
         elif self.context.get_hparam("model_flag") == 'resnet50':
-            model =  resnet50(pretrained=False, num_classes=n_classes) if resize else ResNet50(in_channels=n_channels, num_classes=n_classes)
+            model =  resnet50(pretrained=False, num_classes=n_classes)
         else:
             raise NotImplementedError
 
@@ -51,6 +51,9 @@ class MyMEDMnistTrial(PyTorchTrial):
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss()
+        os.makedirs(DATASET_ROOT, exist_ok=True)
+        wget.download(context.get_data_config()['url'], out=os.path.join(DATASET_ROOT, "pathmnist.npz"))
+        
         
     def build_training_data_loader(self) -> DataLoader:
 
@@ -69,10 +72,7 @@ class MyMEDMnistTrial(PyTorchTrial):
                 [transforms.ToTensor(),
                 transforms.Normalize(mean=[.5], std=[.5])])
         
-        train_dataset = DataClass(split='train', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-        val_dataset = DataClass(split='val', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-        test_dataset = DataClass(split='test', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-        
+        train_dataset = DataClass(split='train', transform=data_transform, download=False, as_rgb=True, root=DATASET_ROOT)
         train_loader = determined.pytorch.DataLoader(dataset=train_dataset,
                                     batch_size=self.context.get_per_slot_batch_size(),
                                     shuffle=True)
@@ -96,10 +96,7 @@ class MyMEDMnistTrial(PyTorchTrial):
                 [transforms.ToTensor(),
                 transforms.Normalize(mean=[.5], std=[.5])])
         
-        train_dataset = DataClass(split='train', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-        val_dataset = DataClass(split='val', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-        test_dataset = DataClass(split='test', transform=data_transform, download=True, as_rgb=self.context.get_hparam("as_rgb"))
-
+        val_dataset = DataClass(split='val', transform=data_transform, download=False, as_rgb=True, root=DATASET_ROOT)
         val_loader = determined.pytorch.DataLoader(dataset=val_dataset,
                                     batch_size=self.context.get_per_slot_batch_size(),
                                     shuffle=False)
