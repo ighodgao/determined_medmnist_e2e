@@ -2,7 +2,6 @@ name: pathmnist_const
 hyperparameters:
     global_batch_size: 128
     data_flag: pathmnist
-    data_s3_url: 
     model_flag: resnet18
     lr: 0.001
     gamma: 0.1
@@ -16,7 +15,7 @@ searcher:
     metric: test_loss
     smaller_is_better: false
     max_length: 
-      epochs: 2
+      epochs: 15
 resources:
     slots_per_trial: 2
 entrypoint: model_def:MyMEDMnistTrial
