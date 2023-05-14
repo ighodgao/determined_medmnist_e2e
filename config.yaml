@@ -7,6 +7,7 @@ hyperparameters:
     gamma: 0.1
     resize: True
     task: "multi-class"
+    num_epochs: 15
 data:
   url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
 records_per_epoch: 89996 

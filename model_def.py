@@ -15,7 +15,12 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 import wget
 from determined.experimental import client
-from determined.pytorch import DataLoader, PyTorchTrial, PyTorchTrialContext
+from determined.pytorch import (
+    DataLoader,
+    LRScheduler,
+    PyTorchTrial,
+    PyTorchTrialContext,
+)
 from medmnist import INFO, Evaluator
 from tensorboardX import SummaryWriter
 from torchvision.models import resnet18, resnet50
@@ -47,11 +52,25 @@ class MyMEDMnistTrial(PyTorchTrial):
             self.model.parameters(), lr=self.context.get_hparam("lr")
         )
         self.optimizer = self.context.wrap_optimizer(optimizer)
-        
+
         if self.context.get_hparam("task") == "multi-label, binary-class":
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss()
+
+        milestones = [
+            0.5 * context.get_hparam("num_epochs"),
+            0.75 * context.get_hparam("num_epochs"),
+        ]
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            self.optimizer,
+            milestones=milestones,
+            gamma=self.context.get_hparam("gamma"),
+        )
+        self.lr_sch = self.context.wrap_lr_scheduler(
+            scheduler, step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH
+        )
+
         os.makedirs(DATASET_ROOT, exist_ok=True)
         wget.download(
             context.get_data_config()["url"],

@@ -1,24 +1,19 @@
-import torch
-from flask import Flask, request, jsonify
-import torch.nn.functional as F
+import io
 
-from determined.experimental import client
-from determined import pytorch
-import torch
-import torch.nn as nn
-
-from tqdm import tqdm
+import medmnist
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as data
 import torchvision.transforms as transforms
-
-import medmnist
+from determined import pytorch
+from determined.experimental import client
+from flask import Flask, jsonify, request
 from medmnist import INFO, Evaluator
 from PIL import Image
-import io
+from tqdm import tqdm
 
 app = Flask(__name__)
 
@@ -28,6 +23,7 @@ path = checkpoint.download()
 trial = pytorch.load_trial_from_checkpoint_path(path)
 model = trial.model
 model.eval()
+
 
 def preprocess_data(image):
     # Resize the image
@@ -56,10 +52,10 @@ def preprocess_data(image):
 
 
 # Define a Flask route for serving predictions
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
     # Get the input image file from the request
-    file = request.files['file']
+    file = request.files["file"]
 
     # Read the image file into a PIL Image object
     image = Image.open(io.BytesIO(file.read()))
@@ -72,20 +68,31 @@ def predict():
 
     # Convert the output tensor to a numpy array
     output_array = output_tensor.detach().numpy()
-    print(output_array)
+
     # Apply softmax to get probabilities for each class
     probabilities = F.softmax(output_tensor, dim=1)
 
     # Convert the output tensor to a numpy array
     output_array = probabilities.detach().numpy()
-    
+
     # Get the predicted class label
     class_label = np.argmax(output_array)
-    class_labels = ["adipose", "background", "debris", "lymphocytes", "mucus","smooth muscle", "normal colon mucosa", "cancer-associated stroma", "colorectal adenocarcinoma epithelium"]
+    class_labels = [
+        "adipose",
+        "background",
+        "debris",
+        "lymphocytes",
+        "mucus",
+        "smooth muscle",
+        "normal colon mucosa",
+        "cancer-associated stroma",
+        "colorectal adenocarcinoma epithelium",
+    ]
 
-   # Return the predicted class label as a JSON response
-    return jsonify({'prediction': class_labels[class_label]})
+    # Return the predicted class label as a JSON response
+    return jsonify({"prediction": class_labels[class_label]})
+
 
 # Start the Flask server
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
