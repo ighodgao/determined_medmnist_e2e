@@ -1,6 +1,6 @@
 # MedMNIST with Determined
 
-Example of training a computer vision model on the MedMNIST dataset using Determined AI. Currently configured to train a model on the PathMNIST dataset, which is one of 12 datasets offered by the MedMNIST project. 
+Example of training a computer vision model on the MedMNIST dataset using Determined AI. Currently configured to train a model on the PathMNIST dataset, which is one of 12 2-D datasets offered by the MedMNIST project. 
 
 ## Changing the dataset
   #### For training purposes
