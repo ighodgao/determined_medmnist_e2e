@@ -75,7 +75,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         os.makedirs(DATASET_ROOT, exist_ok=True)
         wget.download(
             context.get_data_config()["url"],
-            out=os.path.join(DATASET_ROOT, os.getenv(self.context.get_hparam("dataset_name"))),
+            out=os.path.join(DATASET_ROOT, self.context.get_hparam("dataset_name")),
         )
 
     def build_training_data_loader(self) -> DataLoader:
