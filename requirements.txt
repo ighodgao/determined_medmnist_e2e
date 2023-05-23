@@ -1,3 +1,6 @@
 medmnist
 tensorboardX
 wget
+python-dotenv
+determined
+flask

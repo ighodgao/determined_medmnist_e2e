@@ -9,16 +9,18 @@ from determined import pytorch
 from determined.experimental import client
 from medmnist import INFO, Evaluator
 from PIL import Image
+import os
+from dotenv import load_dotenv
+from labels import label_names
+
+load_dotenv()
 
 # global variables
-data_flag = "pathmnist"
-download = True
-
-NUM_EPOCHS = 3
-BATCH_SIZE = 128
-
+data_flag = os.getenv("DATA_FLAG")
 info = INFO[data_flag]
 task = info["task"]
+download = True
+BATCH_SIZE = 128
 
 DataClass = getattr(medmnist, info["python_class"])
 
@@ -36,25 +38,6 @@ pil_dataset = DataClass(split="train", download=download)
 test_loader = data.DataLoader(
     dataset=test_dataset, batch_size=2 * BATCH_SIZE, shuffle=False
 )
-
-# download checkpoint from Determined experiment
-checkpoint = client.get_experiment("641").top_checkpoint()
-path = checkpoint.download()
-trial = pytorch.load_trial_from_checkpoint_path(path)
-model = trial.model
-model.eval()
-
-label_names = [
-    "adipose",
-    "background",
-    "debris",
-    "lymphocytes",
-    "mucus",
-    "smooth muscle",
-    "normal colon mucosa",
-    "cancer-associated stroma",
-    "colorectal adenocarcinoma epithelium",
-]
 
 # save first image of each batch (for label variety)
 for batch_idx, (inputs, targets) in enumerate(test_loader):

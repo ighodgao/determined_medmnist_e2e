@@ -14,11 +14,15 @@ from flask import Flask, jsonify, request
 from medmnist import INFO, Evaluator
 from PIL import Image
 from tqdm import tqdm
+from dotenv import load_dotenv
+import os
 
 app = Flask(__name__)
 
+load_dotenv()
+
 # Load the Determined model
-checkpoint = client.get_experiment("641").top_checkpoint()
+checkpoint = client.get_experiment(os.getenv("EXPERIMENT_ID")).top_checkpoint()
 path = checkpoint.download()
 trial = pytorch.load_trial_from_checkpoint_path(path)
 model = trial.model

@@ -2,6 +2,7 @@ name: pathmnist_const
 hyperparameters:
     global_batch_size: 128
     data_flag: pathmnist
+    dataset_name: "pathmnist.npz"
     model_flag: resnet18
     lr: 0.001
     gamma: 0.1
@@ -22,3 +23,5 @@ resources:
 entrypoint: model_def:MyMEDMnistTrial
 max_restarts: 0
 checkpoint_policy: all
+
+

@@ -25,10 +25,11 @@ from medmnist import INFO, Evaluator
 from tensorboardX import SummaryWriter
 from torchvision.models import resnet18, resnet50
 from tqdm import trange
+from dotenv import load_dotenv
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
 DATASET_ROOT = "datasets"
-
+load_dotenv()
 
 class MyMEDMnistTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
@@ -74,7 +75,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         os.makedirs(DATASET_ROOT, exist_ok=True)
         wget.download(
             context.get_data_config()["url"],
-            out=os.path.join(DATASET_ROOT, "pathmnist.npz"),
+            out=os.path.join(DATASET_ROOT, os.getenv(self.context.get_hparam("dataset_name"))),
         )
 
     def build_training_data_loader(self) -> DataLoader:
