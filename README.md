@@ -15,19 +15,44 @@ Example of training a computer vision model on the MedMNIST dataset using Determ
 ## Training the model
 
   After setting up Determined, export DET_MASTER to your desired cluster IP:
+  
+    export DET_MASTER=<your_desired_master_ip>
 
   Set up a python virtual environment and activate it:
+    
+      python3 -m venv ~/.myvenv
+      source ~/.myvenv/bin/activate
+
+  Install requirements:
+  
+      pip install -r requirements.txt
 
   Submit an experiment:
+    
+      det e create config.yaml .
   
 
 ## Running inference
 
+  Copy the example environment file `.env_example` to `.env `.
+
+    cp .env_example .env
+   
+  Change `EXPERIMENT_ID` to your experiment ID from your training run:
+    
+      EXPERIMENT_ID=<your_experiment_ID>
+      
   Generate sample images to run inference on using the test dataset:
+  
+    mkdir sample_images
+    python3 generate_sample_test_images.py
 
   Deploy the Flask server:
+    
+    python3 deploy.py
 
   Run inference on an image (replace filename with desired image name):
 
-
-More info can be found here:
+    curl -X POST -F file=@sample_images/<filename.jpg> http://localhost:5000/predict
+    
+More info can be found here:https://medmnist.com/
