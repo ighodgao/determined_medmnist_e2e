@@ -1,21 +1,14 @@
 import io
 import os
 
-import medmnist
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import torch.utils.data as data
-import torchvision.transforms as transforms
 from determined import pytorch
 from determined.experimental import client
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
-from medmnist import INFO, Evaluator
 from PIL import Image
-from tqdm import tqdm
 
 app = Flask(__name__)
 

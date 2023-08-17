@@ -1,30 +1,21 @@
-import argparse
 import os
-import time
-from collections import OrderedDict
 from typing import Any, Dict, Sequence, Union
 
 import determined
 import medmnist
-import numpy as np
 import PIL
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import torch.utils.data as data
 import torchvision.transforms as transforms
 import wget
-from determined.experimental import client
 from determined.pytorch import (
     DataLoader,
     LRScheduler,
     PyTorchTrial,
     PyTorchTrialContext,
 )
-from medmnist import INFO, Evaluator
-from tensorboardX import SummaryWriter
+from medmnist import INFO
 from torchvision.models import resnet18, resnet50
-from tqdm import trange
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
 DATASET_ROOT = "datasets"
@@ -35,7 +26,6 @@ class MyMEDMnistTrial(PyTorchTrial):
         self.context = context
 
         self.info = INFO[self.context.get_hparam("data_flag")]
-        task = self.info["task"]
         n_classes = len(self.info["label"])
 
         self.context = context

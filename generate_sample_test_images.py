@@ -2,15 +2,10 @@ import os
 
 import medmnist
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import torch.utils.data as data
 import torchvision.transforms as transforms
-from determined import pytorch
-from determined.experimental import client
 from dotenv import load_dotenv
-from medmnist import INFO, Evaluator
+from medmnist import INFO
 from PIL import Image
 
 load_dotenv()
