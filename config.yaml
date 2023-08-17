@@ -2,15 +2,14 @@ name: pathmnist_const
 hyperparameters:
     global_batch_size: 128
     data_flag: pathmnist
-    dataset_name: "pathmnist.npz"
     model_flag: resnet18
     lr: 0.001
     gamma: 0.1
     resize: True
     task: "multi-class"
     num_epochs: 15
-data:
-  url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
+# data:
+#   url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
 records_per_epoch: 89996 
 searcher:
     name: single
@@ -18,8 +17,8 @@ searcher:
     smaller_is_better: false
     max_length: 
       epochs: 15
-resources:
-    slots_per_trial: 2
+# resources:
+    # slots_per_trial: 2
 entrypoint: model_def:MyMEDMnistTrial
 max_restarts: 0
 checkpoint_policy: all

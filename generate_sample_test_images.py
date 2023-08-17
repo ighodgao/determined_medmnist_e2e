@@ -1,3 +1,5 @@
+import os
+
 import medmnist
 import numpy as np
 import torch
@@ -7,11 +9,9 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from determined import pytorch
 from determined.experimental import client
+from dotenv import load_dotenv
 from medmnist import INFO, Evaluator
 from PIL import Image
-import os
-from dotenv import load_dotenv
-from labels import label_names
 
 load_dotenv()
 
@@ -20,6 +20,7 @@ data_flag = os.getenv("DATA_FLAG")
 info = INFO[data_flag]
 task = info["task"]
 download = True
+root = "datasets"
 BATCH_SIZE = 128
 
 DataClass = getattr(medmnist, info["python_class"])
@@ -30,9 +31,13 @@ data_transform = transforms.Compose(
 )
 
 # load the data
-train_dataset = DataClass(split="train", transform=data_transform, download=download)
-test_dataset = DataClass(split="test", transform=data_transform, download=download)
-pil_dataset = DataClass(split="train", download=download)
+os.makedirs(root, exist_ok=True)
+train_dataset = DataClass(
+    root=root, split="train", transform=data_transform, download=download
+)
+test_dataset = DataClass(
+    root=root, split="test", transform=data_transform, download=download
+)
 
 # encapsulate data into dataloader form
 test_loader = data.DataLoader(
@@ -51,7 +56,7 @@ for batch_idx, (inputs, targets) in enumerate(test_loader):
     img = Image.fromarray(img_array[0])
 
     # get the image label
-    gt_label = [label_names[i] for i in targets[0].numpy()]
+    gt_label = [info["label"][str(i)] for i in targets[0].numpy()]
 
     # save the image to disk with its label name
     img.save(f"sample_images/{gt_label[0]}_{batch_idx}.jpg")

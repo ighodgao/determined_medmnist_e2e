@@ -1,1 +1,1 @@
-pip install -r requirements.txt
+pip install -r training_requirements.txt
