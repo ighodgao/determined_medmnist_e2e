@@ -1,4 +1,5 @@
 medmnist
+wget
 python-dotenv
 determined
 flask

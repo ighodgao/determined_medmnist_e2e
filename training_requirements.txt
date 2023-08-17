@@ -1,3 +1,2 @@
 medmnist
-tensorboardX
 wget
