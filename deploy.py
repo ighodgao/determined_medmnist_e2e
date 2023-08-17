@@ -8,11 +8,13 @@ from determined import pytorch
 from determined.experimental import client
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+from medmnist import INFO
 from PIL import Image
 
 app = Flask(__name__)
 
 load_dotenv()
+data_flag = os.getenv("DATA_FLAG")
 
 # Load the Determined model
 checkpoint = client.get_experiment(os.getenv("EXPERIMENT_ID")).top_checkpoint()
@@ -76,21 +78,11 @@ def predict():
     output_array = probabilities.detach().numpy()
 
     # Get the predicted class label
-    class_label = np.argmax(output_array)
-    class_labels = [
-        "adipose",
-        "background",
-        "debris",
-        "lymphocytes",
-        "mucus",
-        "smooth muscle",
-        "normal colon mucosa",
-        "cancer-associated stroma",
-        "colorectal adenocarcinoma epithelium",
-    ]
+    predicted_int = np.argmax(output_array)
+    prediction = INFO[data_flag]["label"][str(predicted_int)]
 
     # Return the predicted class label as a JSON response
-    return jsonify({"prediction": class_labels[class_label]})
+    return jsonify({"prediction": prediction})
 
 
 # Start the Flask server
