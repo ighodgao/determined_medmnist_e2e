@@ -13,7 +13,6 @@ load_dotenv()
 # global variables
 data_flag = os.getenv("DATA_FLAG")
 info = INFO[data_flag]
-task = info["task"]
 download = True
 root = "datasets"
 BATCH_SIZE = 128

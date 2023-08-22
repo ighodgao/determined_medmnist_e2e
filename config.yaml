@@ -2,16 +2,13 @@ name: retinamnist_const
 hyperparameters:
     global_batch_size: 128
     data_flag: retinamnist
-    model_flag: resnet18
-    lr:
+    lr: 0.001
+    weight_decay:
         type: log
         base: 10
-        minval: -5
-        maxval: 0
+        minval: -4
+        maxval: -1
     gamma: 0.1
-    resize: False
-    task: "multi-class"
-    num_epochs: 15
 # data:
 #   url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
 min_validation_period:
@@ -29,6 +26,5 @@ resources:
     slots_per_trial: 2
 entrypoint: model_def:MyMEDMnistTrial
 max_restarts: 0
-checkpoint_policy: all
 
 

@@ -3,7 +3,6 @@ from typing import Any, Dict, Sequence, Union
 
 import determined
 import medmnist
-import PIL
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
@@ -15,7 +14,6 @@ from determined.pytorch import (
     PyTorchTrialContext,
 )
 from medmnist import INFO
-from torchvision.models import resnet18, resnet50
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
 DATASET_ROOT = "datasets"
@@ -26,32 +24,29 @@ class MyMEDMnistTrial(PyTorchTrial):
         self.context = context
 
         self.info = INFO[self.context.get_hparam("data_flag")]
+        n_channels = self.info["n_channels"]
         n_classes = len(self.info["label"])
+        task = self.info["task"]
 
-        self.context = context
-        if self.context.get_hparam("model_flag") == "resnet18":
-            model = resnet18(pretrained=False, num_classes=n_classes)
-        elif self.context.get_hparam("model_flag") == "resnet50":
-            model = resnet50(pretrained=False, num_classes=n_classes)
-        else:
-            raise NotImplementedError
-
+        model = Net(n_channels, n_classes)
         self.model = self.context.wrap_model(model)
 
         optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.context.get_hparam("lr")
+            self.model.parameters(),
+            lr=self.context.get_hparam("lr"),
+            weight_decay=self.context.get_hparam("weight_decay"),
         )
         self.optimizer = self.context.wrap_optimizer(optimizer)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if task == "multi-label, binary-class":
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss()
 
-        milestones = [
-            0.5 * context.get_hparam("num_epochs"),
-            0.75 * context.get_hparam("num_epochs"),
+        num_epochs = self.context.get_experiment_config()["searcher"]["max_length"][
+            "epochs"
         ]
+        milestones = [0.5 * num_epochs, 0.75 * num_epochs]
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             self.optimizer,
             milestones=milestones,
@@ -74,19 +69,9 @@ class MyMEDMnistTrial(PyTorchTrial):
 
     def build_training_data_loader(self) -> DataLoader:
         DataClass = getattr(medmnist, self.info["python_class"])
-
-        if self.context.get_hparam("resize"):
-            data_transform = transforms.Compose(
-                [
-                    transforms.Resize((224, 224), interpolation=PIL.Image.NEAREST),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.5], std=[0.5]),
-                ]
-            )
-        else:
-            data_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
-            )
+        data_transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
+        )
 
         train_dataset = DataClass(
             split="train",
@@ -105,19 +90,9 @@ class MyMEDMnistTrial(PyTorchTrial):
 
     def build_validation_data_loader(self) -> DataLoader:
         DataClass = getattr(medmnist, self.info["python_class"])
-
-        if self.context.get_hparam("resize"):
-            data_transform = transforms.Compose(
-                [
-                    transforms.Resize((224, 224), interpolation=PIL.Image.NEAREST),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.5], std=[0.5]),
-                ]
-            )
-        else:
-            data_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
-            )
+        data_transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
+        )
 
         val_dataset = DataClass(
             split="val",
@@ -169,3 +144,53 @@ class MyMEDMnistTrial(PyTorchTrial):
             targets = targets.float().resize_(len(targets), 1)
 
         return {"test_loss": loss}
+
+
+# from https://github.com/MedMNIST/MedMNIST/blob/main/examples/getting_started.ipynb
+class Net(nn.Module):
+    def __init__(self, in_channels, num_classes):
+        super().__init__()
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3), nn.BatchNorm2d(16), nn.ReLU()
+        )
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(16, 16, kernel_size=3),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(16, 64, kernel_size=3), nn.BatchNorm2d(64), nn.ReLU()
+        )
+
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3), nn.BatchNorm2d(64), nn.ReLU()
+        )
+
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.fc = nn.Sequential(
+            nn.Linear(64 * 4 * 4, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.layer5(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
