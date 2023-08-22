@@ -8,6 +8,14 @@ hyperparameters:
         base: 10
         minval: -4
         maxval: -1
+    beta1:
+        type: double
+        minval: 0.1
+        maxval: 0.999
+    beta2:
+        type: double
+        minval: 0.1
+        maxval: 0.999
     gamma: 0.1
 # data:
 #   url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz

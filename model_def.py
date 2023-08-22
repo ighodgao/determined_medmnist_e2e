@@ -15,6 +15,8 @@ from determined.pytorch import (
 )
 from medmnist import INFO
 
+from net import Net
+
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
 DATASET_ROOT = "datasets"
 
@@ -22,23 +24,25 @@ DATASET_ROOT = "datasets"
 class MyMEDMnistTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
         self.context = context
+        hparams = self.context.get_hparam
 
-        self.info = INFO[self.context.get_hparam("data_flag")]
+        self.info = INFO[hparams("data_flag")]
         n_channels = self.info["n_channels"]
         n_classes = len(self.info["label"])
-        task = self.info["task"]
+        self.task = self.info["task"]
 
         model = Net(n_channels, n_classes)
         self.model = self.context.wrap_model(model)
 
         optimizer = torch.optim.Adam(
             self.model.parameters(),
-            lr=self.context.get_hparam("lr"),
-            weight_decay=self.context.get_hparam("weight_decay"),
+            lr=hparams("lr"),
+            weight_decay=hparams("weight_decay"),
+            betas=(hparams("beta1"), hparams("beta2")),
         )
         self.optimizer = self.context.wrap_optimizer(optimizer)
 
-        if task == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss()
@@ -50,7 +54,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             self.optimizer,
             milestones=milestones,
-            gamma=self.context.get_hparam("gamma"),
+            gamma=hparams("gamma"),
         )
         self.lr_sch = self.context.wrap_lr_scheduler(
             scheduler, step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH
@@ -62,9 +66,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         if data_url:
             wget.download(
                 data_url,
-                out=os.path.join(
-                    DATASET_ROOT, f"{self.context.get_hparam('data_flag')}.npz"
-                ),
+                out=os.path.join(DATASET_ROOT, f"{hparams('data_flag')}.npz"),
             )
 
     def build_training_data_loader(self) -> DataLoader:
@@ -115,7 +117,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         inputs, targets = batch
         outputs = self.model(inputs)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             targets = targets.to(torch.float32)
             loss = self.criterion(outputs, targets)
         else:
@@ -125,13 +127,13 @@ class MyMEDMnistTrial(PyTorchTrial):
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
-        return {"loss": loss}
+        return {"loss": loss, "lr": self.optimizer.param_groups[0]["lr"]}
 
     def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
         inputs, targets = batch
         outputs = self.model(inputs)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             targets = targets.to(torch.float32)
             loss = self.criterion(outputs, targets)
             m = nn.Sigmoid()
@@ -144,53 +146,3 @@ class MyMEDMnistTrial(PyTorchTrial):
             targets = targets.float().resize_(len(targets), 1)
 
         return {"test_loss": loss}
-
-
-# from https://github.com/MedMNIST/MedMNIST/blob/main/examples/getting_started.ipynb
-class Net(nn.Module):
-    def __init__(self, in_channels, num_classes):
-        super().__init__()
-
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels, 16, kernel_size=3), nn.BatchNorm2d(16), nn.ReLU()
-        )
-
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(16, 16, kernel_size=3),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(16, 64, kernel_size=3), nn.BatchNorm2d(64), nn.ReLU()
-        )
-
-        self.layer4 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3), nn.BatchNorm2d(64), nn.ReLU()
-        )
-
-        self.layer5 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-
-        self.fc = nn.Sequential(
-            nn.Linear(64 * 4 * 4, 128),
-            nn.ReLU(),
-            nn.Linear(128, 128),
-            nn.ReLU(),
-            nn.Linear(128, num_classes),
-        )
-
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.layer5(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return x
