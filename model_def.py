@@ -50,7 +50,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         num_epochs = self.context.get_experiment_config()["searcher"]["max_length"][
             "epochs"
         ]
-        milestones = [0.5 * num_epochs, 0.75 * num_epochs]
+        milestones = [int(0.5 * num_epochs), int(0.75 * num_epochs)]
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             self.optimizer,
             milestones=milestones,
@@ -127,7 +127,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
-        return {"loss": loss, "lr": self.optimizer.param_groups[0]["lr"]}
+        return {"loss": loss, "lr": self.lr_sch.get_last_lr()}
 
     def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
         inputs, targets = batch
