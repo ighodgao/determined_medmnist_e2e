@@ -1,103 +1,84 @@
-import argparse
 import os
-import time
-from collections import OrderedDict
 from typing import Any, Dict, Sequence, Union
 
 import determined
 import medmnist
-import numpy as np
-import PIL
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import torch.utils.data as data
 import torchvision.transforms as transforms
 import wget
-from determined.experimental import client
 from determined.pytorch import (
     DataLoader,
     LRScheduler,
     PyTorchTrial,
     PyTorchTrialContext,
 )
-from medmnist import INFO, Evaluator
-from tensorboardX import SummaryWriter
-from torchvision.models import resnet18, resnet50
-from tqdm import trange
-from dotenv import load_dotenv
+from medmnist import INFO
+
+from net import Net
 
 TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
 DATASET_ROOT = "datasets"
-load_dotenv()
+
 
 class MyMEDMnistTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
         self.context = context
+        hparams = self.context.get_hparam
 
-        self.info = INFO[self.context.get_hparam("data_flag")]
-        task = self.info["task"]
+        self.info = INFO[hparams("data_flag")]
+        n_channels = self.info["n_channels"]
         n_classes = len(self.info["label"])
+        self.task = self.info["task"]
 
-        self.context = context
-        if self.context.get_hparam("model_flag") == "resnet18":
-            model = resnet18(pretrained=False, num_classes=n_classes)
-        elif self.context.get_hparam("model_flag") == "resnet50":
-            model = resnet50(pretrained=False, num_classes=n_classes)
-        else:
-            raise NotImplementedError
-
+        model = Net(n_channels, n_classes)
         self.model = self.context.wrap_model(model)
 
         optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.context.get_hparam("lr")
+            self.model.parameters(),
+            lr=hparams("lr"),
+            weight_decay=hparams("weight_decay"),
+            betas=(hparams("beta1"), hparams("beta2")),
         )
         self.optimizer = self.context.wrap_optimizer(optimizer)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss()
 
-        milestones = [
-            0.5 * context.get_hparam("num_epochs"),
-            0.75 * context.get_hparam("num_epochs"),
+        num_epochs = self.context.get_experiment_config()["searcher"]["max_length"][
+            "epochs"
         ]
+        milestones = [int(0.5 * num_epochs), int(0.75 * num_epochs)]
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             self.optimizer,
             milestones=milestones,
-            gamma=self.context.get_hparam("gamma"),
+            gamma=hparams("gamma"),
         )
         self.lr_sch = self.context.wrap_lr_scheduler(
             scheduler, step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH
         )
 
         os.makedirs(DATASET_ROOT, exist_ok=True)
-        wget.download(
-            context.get_data_config()["url"],
-            out=os.path.join(DATASET_ROOT, self.context.get_hparam("dataset_name")),
-        )
+
+        data_url = context.get_data_config().get("url")
+        if data_url:
+            wget.download(
+                data_url,
+                out=os.path.join(DATASET_ROOT, f"{hparams('data_flag')}.npz"),
+            )
 
     def build_training_data_loader(self) -> DataLoader:
         DataClass = getattr(medmnist, self.info["python_class"])
-
-        if self.context.get_hparam("resize"):
-            data_transform = transforms.Compose(
-                [
-                    transforms.Resize((224, 224), interpolation=PIL.Image.NEAREST),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.5], std=[0.5]),
-                ]
-            )
-        else:
-            data_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
-            )
+        data_transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
+        )
 
         train_dataset = DataClass(
             split="train",
             transform=data_transform,
-            download=False,
+            download=True,
             as_rgb=True,
             root=DATASET_ROOT,
         )
@@ -111,24 +92,14 @@ class MyMEDMnistTrial(PyTorchTrial):
 
     def build_validation_data_loader(self) -> DataLoader:
         DataClass = getattr(medmnist, self.info["python_class"])
-
-        if self.context.get_hparam("resize"):
-            data_transform = transforms.Compose(
-                [
-                    transforms.Resize((224, 224), interpolation=PIL.Image.NEAREST),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.5], std=[0.5]),
-                ]
-            )
-        else:
-            data_transform = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
-            )
+        data_transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean=[0.5], std=[0.5])]
+        )
 
         val_dataset = DataClass(
             split="val",
             transform=data_transform,
-            download=False,
+            download=True,
             as_rgb=True,
             root=DATASET_ROOT,
         )
@@ -146,7 +117,7 @@ class MyMEDMnistTrial(PyTorchTrial):
         inputs, targets = batch
         outputs = self.model(inputs)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             targets = targets.to(torch.float32)
             loss = self.criterion(outputs, targets)
         else:
@@ -156,13 +127,13 @@ class MyMEDMnistTrial(PyTorchTrial):
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
-        return {"loss": loss}
+        return {"loss": loss, "lr": self.lr_sch.get_last_lr()}
 
     def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
         inputs, targets = batch
         outputs = self.model(inputs)
 
-        if self.context.get_hparam("task") == "multi-label, binary-class":
+        if self.task == "multi-label, binary-class":
             targets = targets.to(torch.float32)
             loss = self.criterion(outputs, targets)
             m = nn.Sigmoid()

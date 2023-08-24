@@ -1,27 +1,38 @@
-name: pathmnist_const
+name: retinamnist_const
 hyperparameters:
     global_batch_size: 128
-    data_flag: pathmnist
-    dataset_name: "pathmnist.npz"
-    model_flag: resnet18
+    data_flag: retinamnist
     lr: 0.001
+    weight_decay:
+        type: log
+        base: 10
+        minval: -4
+        maxval: -1
+    beta1:
+        type: double
+        minval: 0.1
+        maxval: 0.999
+    beta2:
+        type: double
+        minval: 0.1
+        maxval: 0.999
     gamma: 0.1
-    resize: True
-    task: "multi-class"
-    num_epochs: 15
-data:
-  url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
-records_per_epoch: 89996 
+# data:
+#   url: https://medmnist-pathmnist.s3.us-east-2.amazonaws.com/pathmnist.npz
+min_validation_period:
+    epochs: 1
+records_per_epoch: 1080 
 searcher:
-    name: single
+    name: adaptive_asha
     metric: test_loss
-    smaller_is_better: false
+    smaller_is_better: true
     max_length: 
       epochs: 15
+    max_trials: 16
+    mode: aggressive
 resources:
     slots_per_trial: 2
 entrypoint: model_def:MyMEDMnistTrial
 max_restarts: 0
-checkpoint_policy: all
 
 

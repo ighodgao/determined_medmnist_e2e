@@ -4,9 +4,7 @@ Example of training a computer vision model on the MedMNIST dataset using Determ
 
 ## Changing the dataset
   #### For training purposes
-  1) Replace `data_flag` in `config.yaml` with the corresponding data flag. Full list can be found [here](https://github.com/MedMNIST/MedMNIST/blob/main/medmnist/info.py).
-  2) Download the desired corresponding dataset from [Zenodo](https://zenodo.org/record/6496656). Upload this to your S3 bucket and update the bucket details in `config.yaml`.
-  3) Update  `dataset_name ` in `config.yaml` to the name of this file.
+  1) Replace `data_flag` in `config.yaml` with the name of a MedMNIST subset. The subset names are listed [here](https://github.com/MedMNIST/MedMNIST/blob/main/medmnist/info.py), in the `INFO` variable. For example, `pathmnist` is one of the subset names.
   
   #### For inference purposes
   1) Copy the example environment file `.env_example` to `.env `.
@@ -18,15 +16,6 @@ Example of training a computer vision model on the MedMNIST dataset using Determ
   
       export DET_MASTER=<your_desired_master_ip>
 
-  Set up a python virtual environment and activate it:
-    
-      python3 -m venv ~/.myvenv
-      source ~/.myvenv/bin/activate
-
-  Install requirements:
-  
-      pip install -r requirements.txt
-
   Submit an experiment:
     
       det e create config.yaml .
@@ -34,11 +23,15 @@ Example of training a computer vision model on the MedMNIST dataset using Determ
 
 ## Running inference
 
+  Install requirements:
+  
+      pip install -r inference_requirements.txt
+
   Copy the example environment file `.env_example` to `.env `.
 
       cp .env_example .env
    
-  Change `EXPERIMENT_ID` to your experiment ID from your training run:
+  In the `.env` file, change `EXPERIMENT_ID` to your experiment ID from your training run:
     
       EXPERIMENT_ID=<your_experiment_ID>
       

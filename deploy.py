@@ -1,30 +1,28 @@
 import io
+import os
 
-import medmnist
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import torch.utils.data as data
-import torchvision.transforms as transforms
 from determined import pytorch
 from determined.experimental import client
-from flask import Flask, jsonify, request
-from medmnist import INFO, Evaluator
-from PIL import Image
-from tqdm import tqdm
 from dotenv import load_dotenv
-import os
+from flask import Flask, jsonify, request
+from medmnist import INFO
+from PIL import Image
 
 app = Flask(__name__)
 
 load_dotenv()
+data_flag = os.getenv("DATA_FLAG")
 
 # Load the Determined model
 checkpoint = client.get_experiment(os.getenv("EXPERIMENT_ID")).top_checkpoint()
 path = checkpoint.download()
-trial = pytorch.load_trial_from_checkpoint_path(path)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+trial = pytorch.load_trial_from_checkpoint_path(
+    path, torch_load_kwargs={"map_location": device}
+)
 model = trial.model
 model.eval()
 
@@ -80,21 +78,11 @@ def predict():
     output_array = probabilities.detach().numpy()
 
     # Get the predicted class label
-    class_label = np.argmax(output_array)
-    class_labels = [
-        "adipose",
-        "background",
-        "debris",
-        "lymphocytes",
-        "mucus",
-        "smooth muscle",
-        "normal colon mucosa",
-        "cancer-associated stroma",
-        "colorectal adenocarcinoma epithelium",
-    ]
+    predicted_int = np.argmax(output_array)
+    prediction = INFO[data_flag]["label"][str(predicted_int)]
 
     # Return the predicted class label as a JSON response
-    return jsonify({"prediction": class_labels[class_label]})
+    return jsonify({"prediction": prediction})
 
 
 # Start the Flask server
